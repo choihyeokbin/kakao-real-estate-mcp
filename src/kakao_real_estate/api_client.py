@@ -126,22 +126,43 @@ async def kakao_keyword_search(query: str) -> dict | None:
     }
 
 
-async def kakao_nearby_stations(dong_name: str, region_name: str) -> list[dict]:
-    """법정동 근처 지하철역 검색 (최대 3개)"""
+async def kakao_nearby_places(dong_name: str, region_name: str, category_code: str, size: int = 3) -> list[dict]:
+    """법정동 근처 장소 검색
+
+    category_code:
+        SW8 = 지하철역
+        SC4 = 학교
+        PS3 = 어린이집/유치원
+    """
     headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
-    params = {"query": f"{region_name} {dong_name} 지하철역", "size": "3", "category_group_code": "SW8"}
+
+    # 먼저 법정동 좌표를 검색
+    dong_coord = await kakao_keyword_search(f"{region_name} {dong_name}")
+    if not dong_coord:
+        return []
+
+    # 좌표 기반 카테고리 검색 (거리 계산 가능)
+    category_url = "https://dapi.kakao.com/v2/local/search/category.json"
+    params = {
+        "category_group_code": category_code,
+        "x": str(dong_coord["x"]),
+        "y": str(dong_coord["y"]),
+        "radius": "2000",
+        "sort": "distance",
+        "size": str(size),
+    }
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
+            resp = await client.get(category_url, headers=headers, params=params)
             resp.raise_for_status()
         body = resp.json()
-        stations = []
+        places = []
         for doc in body.get("documents", []):
-            stations.append({
+            places.append({
                 "name": doc.get("place_name", ""),
                 "distance": doc.get("distance", ""),
             })
-        return stations
+        return places
     except httpx.HTTPStatusError:
         return []
 

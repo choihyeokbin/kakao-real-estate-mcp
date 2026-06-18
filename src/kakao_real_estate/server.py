@@ -5,6 +5,7 @@
 - get_market_price: 아파트 실거래가/시세 조회
 """
 
+import asyncio
 import math
 import re
 from datetime import datetime, timedelta
@@ -17,7 +18,7 @@ from kakao_real_estate.api_client import (
     fetch_trade,
     kakao_coord_to_region,
     kakao_keyword_search,
-    kakao_nearby_stations,
+    kakao_nearby_places,
 )
 
 VALID_PROPERTY_TYPES = ["아파트", "오피스텔", "연립다세대"]
@@ -92,6 +93,8 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
     month = item.get("월", "")
     day = item.get("일", "")
     station_info = item.get("_nearest_station", "")
+    school_info = item.get("_nearest_school", "")
+    childcare_info = item.get("_nearest_childcare", "")
 
     # 이름이 지번만 있는 경우 보완 (예: "(918-15)" → "화곡동 918-15 오피스텔")
     if apt.startswith("(") and apt.endswith(")"):
@@ -119,34 +122,73 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
     if station_info:
         lines.append(f"   🚇 {station_info}")
+    if school_info:
+        lines.append(f"   🏫 {school_info}")
+    if childcare_info:
+        lines.append(f"   👶 {childcare_info}")
     lines.append("")
     return lines
 
 
-async def _add_station_info(items: list[dict], region_name: str) -> None:
-    """매물 리스트에 근처 지하철역 정보를 추가"""
-    dong_cache: dict[str, str] = {}
+def _format_distance(dist_str: str) -> str:
+    """거리 문자열을 '거리 + 도보 시간'으로 변환 (도보 평균 시속 4km)"""
+    if not dist_str:
+        return ""
+    dist_m = int(dist_str)
+    walk_min = round(dist_m / 67)  # 4km/h ≈ 67m/min
+    if dist_m >= 1000:
+        return f"{dist_m / 1000:.1f}km, 도보 {walk_min}분"
+    return f"{dist_m}m, 도보 {walk_min}분"
+
+
+async def _add_nearby_info(items: list[dict], region_name: str) -> None:
+    """매물 리스트에 근처 지하철역 + 학교 + 어린이집 정보를 추가"""
+    dong_cache: dict[str, dict[str, str]] = {}
     for item in items:
         dong = item.get("법정동", "")
         if not dong:
             continue
         if dong not in dong_cache:
-            stations = await kakao_nearby_stations(dong, region_name)
+            stations, schools, childcares = await asyncio.gather(
+                kakao_nearby_places(dong, region_name, "SW8", 2),
+                kakao_nearby_places(dong, region_name, "SC4", 2),
+                kakao_nearby_places(dong, region_name, "PS3", 2),
+            )
+            cache_entry: dict[str, str] = {}
+
+            # 지하철역
             if stations:
                 parts = []
                 for s in stations[:2]:
-                    name = s["name"]
-                    dist = s.get("distance", "")
-                    if dist:
-                        dist_km = int(dist) / 1000
-                        parts.append(f"{name} (약 {dist_km:.1f}km)")
-                    else:
-                        parts.append(name)
-                dong_cache[dong] = " / ".join(parts)
-            else:
-                dong_cache[dong] = ""
-        if dong_cache[dong]:
-            item["_nearest_station"] = dong_cache[dong]
+                    dist_info = _format_distance(s.get("distance", ""))
+                    parts.append(f"{s['name']} ({dist_info})" if dist_info else s["name"])
+                cache_entry["station"] = " / ".join(parts)
+
+            # 학교
+            if schools:
+                parts = []
+                for s in schools[:2]:
+                    dist_info = _format_distance(s.get("distance", ""))
+                    parts.append(f"{s['name']} ({dist_info})" if dist_info else s["name"])
+                cache_entry["school"] = " / ".join(parts)
+
+            # 어린이집/유치원
+            if childcares:
+                parts = []
+                for s in childcares[:2]:
+                    dist_info = _format_distance(s.get("distance", ""))
+                    parts.append(f"{s['name']} ({dist_info})" if dist_info else s["name"])
+                cache_entry["childcare"] = " / ".join(parts)
+
+            dong_cache[dong] = cache_entry
+
+        info = dong_cache[dong]
+        if info.get("station"):
+            item["_nearest_station"] = info["station"]
+        if info.get("school"):
+            item["_nearest_school"] = info["school"]
+        if info.get("childcare"):
+            item["_nearest_childcare"] = info["childcare"]
 
 
 async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
@@ -237,7 +279,7 @@ async def search_property(
     if not filtered:
         return f"{display_name} 지역에서 최근 3개월 내 조건에 맞는 {trade_type} 거래 기록이 없습니다."
 
-    await _add_station_info(filtered, region_name)
+    await _add_nearby_info(filtered, region_name)
 
     lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월)\n"]
     for i, item in enumerate(filtered, 1):
@@ -335,7 +377,7 @@ async def find_midpoint_property(
         lines.append(f"{region_name} 지역에서 최근 3개월 내 조건에 맞는 {trade_type} 거래 기록이 없습니다.")
         return "\n".join(lines)
 
-    await _add_station_info(unique_items, region_name)
+    await _add_nearby_info(unique_items, region_name)
 
     lines.append(f"최근 {trade_type} 실거래 내역:\n")
     for i, item in enumerate(unique_items, 1):
