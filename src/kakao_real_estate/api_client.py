@@ -74,7 +74,10 @@ async def fetch_rent(region_code: str, deal_ymd: str, property_type: str = "아�
 def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아파트") -> list[dict]:
     """국토교통부 XML 응답 파싱"""
     results = []
-    root = ElementTree.fromstring(xml_text)
+    try:
+        root = ElementTree.fromstring(xml_text)
+    except ElementTree.ParseError:
+        return []
     items = root.findall(".//item")
     for item in items:
         data: dict = {"거래유형": trade_type, "매물종류": property_type}
