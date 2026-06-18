@@ -120,12 +120,20 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
         lines.append(f"   📍 {dong} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
+    if station_info or school_info or childcare_info:
+        lines.append(f"   ─────────────────────")
     if station_info:
-        lines.append(f"   🚇 {station_info}")
-    if school_info:
-        lines.append(f"   🏫 {school_info}")
-    if childcare_info:
-        lines.append(f"   👶 {childcare_info}")
+        lines.append(f"   🚇 근처 역")
+        for s in station_info.split(" / "):
+            lines.append(f"      • {s}")
+    if school_info or childcare_info:
+        lines.append(f"   🏫 주변 학군")
+        if school_info:
+            for s in school_info.split(" / "):
+                lines.append(f"      • {s}")
+        if childcare_info:
+            for s in childcare_info.split(" / "):
+                lines.append(f"      • {s}")
     lines.append("")
     return lines
 
