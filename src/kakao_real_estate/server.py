@@ -24,7 +24,12 @@ from kakao_real_estate.region_code import find_region_code
 
 load_dotenv()
 
-mcp = FastMCP("kakao-real-estate")
+mcp = FastMCP(
+    "kakao-real-estate",
+    host="0.0.0.0",
+    port=8000,
+    transport_security={"enable_dns_rebinding_protection": False},
+)
 
 
 def _recent_months(n: int = 3) -> list[str]:
@@ -433,20 +438,11 @@ async def get_market_price(
 
 
 def main():
-    import os
     import sys
 
-    transport = "streamable-http"
-
-    for arg in sys.argv[1:]:
-        if arg == "--stdio":
-            transport = "stdio"
-
-    if transport == "stdio":
+    if "--stdio" in sys.argv:
         mcp.run(transport="stdio")
     else:
-        os.environ.setdefault("UVICORN_HOST", "0.0.0.0")
-        os.environ.setdefault("UVICORN_PORT", "8000")
         mcp.run(transport="streamable-http")
 
 
