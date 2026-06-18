@@ -102,7 +102,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         apt = f"{dong} {jibun} {prop_type}"
 
     jibun = item.get("지번", "")
-    build_info = f" | 건축 {build_year}년" if build_year else ""
+    build_info = f"\n   🏗️ 건축년도: {build_year}년" if build_year else ""
     sido = get_sido(region_code) if region_code else ""
     address_parts = [sido, region_name, dong, jibun]
     address = " ".join(p for p in address_parts if p)
@@ -110,7 +110,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
     if trade_type == "매매":
         price_display = _format_price(item.get("거래금액", "0"))
         lines.append(f"{index}. 🏢 {apt} ({address})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
+        lines.append(f"   📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
         lines.append(f"   매매가: {price_display}")
         lines.append(f"   거래일: {year}.{month}.{day}")
     else:
@@ -121,7 +121,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         else:
             price_display = f"전세 {deposit}"
         lines.append(f"{index}. 🏢 {apt} ({address})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
+        lines.append(f"   📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
     if station_info:
