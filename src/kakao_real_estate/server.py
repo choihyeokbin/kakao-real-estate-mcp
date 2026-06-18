@@ -231,7 +231,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
 # ──────────────────────────────────────────────
 # Tool 1: 매물 검색 (실거래가 기반)
 # ──────────────────────────────────────────────
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
 async def search_property(
     region: str,
     property_type: str = "아파트",
@@ -240,7 +240,7 @@ async def search_property(
     max_price: int = 999999,
     max_results: int = 5,
 ) -> str:
-    """지역 기반 부동산 실거래 매물을 검색합니다.
+    """[부동산 매물 검색] 지역 기반 부동산 실거래 매물을 검색합니다. 주변 역, 학교, 어린이집 정보와 카카오맵 링크도 함께 제공합니다.
 
     Args:
         region: 검색할 지역 (예: '강남구', '강남역', '화곡동', '서울 마포구 공덕동')
@@ -344,7 +344,7 @@ async def search_property(
 # ──────────────────────────────────────────────
 # Tool 2: 중간 지점 매물 추천
 # ──────────────────────────────────────────────
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
 async def find_midpoint_property(
     location_a: str,
     location_b: str,
@@ -353,7 +353,7 @@ async def find_midpoint_property(
     max_price: int = 999999,
     max_results: int = 5,
 ) -> str:
-    """두 직장/학교의 중간 지점에서 부동산 매물을 추천합니다. 공동 거주자의 통근을 고려한 최적 위치를 찾습니다.
+    """[부동산 매물 검색] 두 직장/학교의 중간 지점에서 부동산 매물을 추천합니다. 공동 거주자의 통근을 고려한 최적 위치를 찾고, 주변 역과 학군 정보도 함께 제공합니다.
 
     Args:
         location_a: 첫 번째 출발지 (예: '판교역', '삼성전자', '서울대학교')
@@ -442,14 +442,14 @@ async def find_midpoint_property(
 # ──────────────────────────────────────────────
 # Tool 3: 실거래가/시세 조회
 # ──────────────────────────────────────────────
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
 async def get_market_price(
     apartment_name: str,
     region: str = "",
     property_type: str = "아파트",
     months: int = 6,
 ) -> str:
-    """부동산의 실거래가(매매/전월세) 시세를 조회합니다. 최근 거래 가격 추이를 확인할 수 있습니다.
+    """[부동산 매물 검색] 부동산의 실거래가(매매/전월세) 시세를 조회합니다. 평형별 평균가, 최저가, 최고가와 최근 거래 내역을 확인할 수 있습니다.
 
     Args:
         apartment_name: 건물 이름 (예: '래미안푸르지오', '반포자이', '헬리오시티')
