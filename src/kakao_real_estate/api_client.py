@@ -46,7 +46,7 @@ async def fetch_trade(region_code: str, deal_ymd: str, property_type: str = "아
             resp = await client.get(url, params=params)
             resp.raise_for_status()
         return _parse_molit_xml(resp.text, trade_type="매매", property_type=property_type)
-    except httpx.HTTPStatusError:
+    except Exception:
         return []
 
 
@@ -67,7 +67,7 @@ async def fetch_rent(region_code: str, deal_ymd: str, property_type: str = "아�
             resp = await client.get(url, params=params)
             resp.raise_for_status()
         return _parse_molit_xml(resp.text, trade_type="전월세", property_type=property_type)
-    except httpx.HTTPStatusError:
+    except Exception:
         return []
 
 
@@ -109,22 +109,25 @@ def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아�
 
 async def kakao_keyword_search(query: str) -> dict | None:
     """카카오 키워드 장소 검색 → 첫 번째 결과의 좌표 반환"""
-    headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
-    params = {"query": query, "size": "1"}
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
-        resp.raise_for_status()
-    body = resp.json()
-    docs = body.get("documents", [])
-    if not docs:
+    try:
+        headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
+        params = {"query": query, "size": "1"}
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
+            resp.raise_for_status()
+        body = resp.json()
+        docs = body.get("documents", [])
+        if not docs:
+            return None
+        doc = docs[0]
+        return {
+            "place_name": doc.get("place_name", ""),
+            "address": doc.get("address_name", ""),
+            "x": float(doc["x"]),
+            "y": float(doc["y"]),
+        }
+    except Exception:
         return None
-    doc = docs[0]
-    return {
-        "place_name": doc.get("place_name", ""),
-        "address": doc.get("address_name", ""),
-        "x": float(doc["x"]),
-        "y": float(doc["y"]),
-    }
 
 
 async def kakao_nearby_places(dong_name: str, region_name: str, category_code: str, size: int = 3) -> list[dict]:
@@ -164,21 +167,24 @@ async def kakao_nearby_places(dong_name: str, region_name: str, category_code: s
                 "distance": doc.get("distance", ""),
             })
         return places
-    except httpx.HTTPStatusError:
+    except Exception:
         return []
 
 
 async def kakao_coord_to_region(x: float, y: float) -> str | None:
     """좌표 → 행정구역(구) 변환"""
-    headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
-    url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
-    params = {"x": str(x), "y": str(y)}
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(url, headers=headers, params=params)
-        resp.raise_for_status()
-    body = resp.json()
-    docs = body.get("documents", [])
-    for doc in docs:
-        if doc.get("region_type") == "H":
-            return doc.get("region_2depth_name", "")
-    return None
+    try:
+        headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
+        url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+        params = {"x": str(x), "y": str(y)}
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+        body = resp.json()
+        docs = body.get("documents", [])
+        for doc in docs:
+            if doc.get("region_type") == "H":
+                return doc.get("region_2depth_name", "")
+        return None
+    except Exception:
+        return None
