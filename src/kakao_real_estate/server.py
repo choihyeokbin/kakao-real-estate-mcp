@@ -83,18 +83,27 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
     lines = []
     apt = item.get("아파트", "정보없음")
     dong = item.get("법정동", "")
+    prop_type = item.get("매물종류", "아파트")
     area = float(item.get("전용면적", "0"))
     floor = item.get("층", "?")
+    build_year = item.get("건축년도", "")
     year = item.get("년", "")
     month = item.get("월", "")
     day = item.get("일", "")
 
+    # 이름이 지번만 있는 경우 보완 (예: "(918-15)" → "화곡동 918-15 오피스텔")
+    if apt.startswith("(") and apt.endswith(")"):
+        jibun = apt[1:-1]
+        apt = f"{dong} {jibun} {prop_type}"
+
+    build_info = f" | 건축 {build_year}년" if build_year else ""
+
     if trade_type == "매매":
         price_display = _format_price(item.get("거래금액", "0"))
-        lines.append(f"{index}. {apt} ({dong})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평) | {floor}층")
-        lines.append(f"   매매가: {price_display}")
-        lines.append(f"   거래일: {year}.{month}.{day}")
+        lines.append(f"{index}. 🏢 {apt}")
+        lines.append(f"   📍 {dong} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   💰 매매가: {price_display}")
+        lines.append(f"   📅 거래일: {year}.{month}.{day}")
     else:
         deposit = _format_price(item.get("보증금액", "0"))
         monthly = item.get("월세금액", "0").strip()
@@ -102,10 +111,10 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
             price_display = f"보증금 {deposit} / 월세 {int(monthly):,}만원"
         else:
             price_display = f"전세 {deposit}"
-        lines.append(f"{index}. {apt} ({dong})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평) | {floor}층")
-        lines.append(f"   {price_display}")
-        lines.append(f"   거래일: {year}.{month}.{day}")
+        lines.append(f"{index}. 🏢 {apt}")
+        lines.append(f"   📍 {dong} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   💰 {price_display}")
+        lines.append(f"   📅 거래일: {year}.{month}.{day}")
     lines.append("")
     return lines
 
