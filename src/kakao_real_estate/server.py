@@ -110,7 +110,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
     if trade_type == "매매":
         price_display = _format_price(item.get("거래금액", "0"))
         lines.append(f"{index}. 🏢 {apt} ({address})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
         lines.append(f"   매매가: {price_display}")
         lines.append(f"   거래일: {year}.{month}.{day}")
     else:
@@ -121,7 +121,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         else:
             price_display = f"전세 {deposit}"
         lines.append(f"{index}. 🏢 {apt} ({address})")
-        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
     if station_info:
@@ -534,7 +534,7 @@ async def get_market_price(
             price = _format_price(item.get("거래금액", "0"))
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
-            lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | {price}")
+            lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, {price}")
         lines.append("")
 
     if matched_rents:
@@ -564,9 +564,9 @@ async def get_market_price(
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
             if monthly and monthly != "0":
-                lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | 보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원")
+                lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, 보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원")
             else:
-                lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | 전세 {deposit}")
+                lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, 전세 {deposit}")
         lines.append("")
 
     return "\n".join(lines)
