@@ -529,16 +529,23 @@ async def get_market_price(
 
         lines.append("")
         lines.append("  최근 거래:")
-        for item in matched_trades[:5]:
+        for idx, item in enumerate(matched_trades[:5], 1):
             apt = item.get("아파트", "")
             dong = item.get("법정동", "")
             jibun = item.get("지번", "")
             area = float(item.get("전용면적", "0"))
+            build_year = item.get("건축년도", "")
             price = _format_price(item.get("거래금액", "0"))
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
-            location = f"{apt} ({dong} {jibun})".strip()
-            lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, {price}")
+            sido = get_sido(region_code) if region_code else ""
+            addr = " ".join(p for p in [sido, region_name, dong, jibun] if p)
+            by = f", 건축 {build_year}년" if build_year else ""
+            lines.append(f"  {idx}. 🏢 {apt} ({addr})")
+            lines.append(f"     📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{by}")
+            lines.append(f"     💰 매매가: {price}")
+            lines.append(f"     📅 거래일: {date}")
+            lines.append("")
         lines.append("")
 
     if matched_rents:
@@ -561,20 +568,28 @@ async def get_market_price(
 
         lines.append("")
         lines.append("  최근 거래:")
-        for item in matched_rents[:5]:
+        for idx, item in enumerate(matched_rents[:5], 1):
             apt = item.get("아파트", "")
             dong = item.get("법정동", "")
             jibun = item.get("지번", "")
             area = float(item.get("전용면적", "0"))
+            build_year = item.get("건축년도", "")
             deposit = _format_price(item.get("보증금액", "0"))
             monthly = item.get("월세금액", "0").strip()
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
-            location = f"{apt} ({dong} {jibun})".strip()
+            sido = get_sido(region_code) if region_code else ""
+            addr = " ".join(p for p in [sido, region_name, dong, jibun] if p)
+            by = f", 건축 {build_year}년" if build_year else ""
             if monthly and monthly != "0":
-                lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, 보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원")
+                price_display = f"보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원"
             else:
-                lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, 전세 {deposit}")
+                price_display = f"전세 {deposit}"
+            lines.append(f"  {idx}. 🏢 {apt} ({addr})")
+            lines.append(f"     📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{by}")
+            lines.append(f"     💰 {price_display}")
+            lines.append(f"     📅 거래일: {date}")
+            lines.append("")
         lines.append("")
 
     return "\n".join(lines)
