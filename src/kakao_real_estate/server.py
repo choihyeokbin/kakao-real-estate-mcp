@@ -289,7 +289,22 @@ async def search_property(
 
     display_name = f"{region_name} {dong}" if dong else region_name
     if not filtered:
-        return f"{display_name} 지역에서 최근 3개월 내 조건에 맞는 {trade_type} 거래 기록이 없습니다."
+        # 전체 매물에서 최저가 정보 제공
+        all_prices = []
+        for item in all_items:
+            if trade_type == "매매":
+                p = item.get("거래금액", "0")
+            else:
+                p = item.get("보증금액", item.get("거래금액", "0"))
+            all_prices.append(int(p.replace(",", "").strip()))
+        if all_prices:
+            min_p = _format_price(str(min(all_prices)))
+            avg_p = _format_price(str(sum(all_prices) // len(all_prices)))
+            return (
+                f"{display_name} 지역에서 조건에 맞는 {trade_type} 거래 기록이 없습니다.\n"
+                f"참고: 해당 지역 {property_type} {trade_type} 최저가는 {min_p}이며, 평균 {avg_p}입니다. (최근 3개월, {len(all_prices)}건)"
+            )
+        return f"{display_name} 지역에서 최근 3개월 내 {property_type} {trade_type} 거래 기록 자체가 없습니다."
 
     await _add_nearby_info(filtered, region_name)
 
