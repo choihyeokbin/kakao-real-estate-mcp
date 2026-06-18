@@ -80,7 +80,7 @@ def _filter_by_dong(items: list[dict], dong: str) -> list[dict]:
     return [item for item in items if dong_name in item.get("법정동", "")]
 
 
-def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
+def _format_item(item: dict, index: int, trade_type: str, region_name: str = "") -> list[str]:
     """매물 한 건을 포맷팅된 문자열 리스트로 변환"""
     lines = []
     apt = item.get("아파트", "정보없음")
@@ -102,11 +102,12 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
         apt = f"{dong} {jibun} {prop_type}"
 
     build_info = f" | 건축 {build_year}년" if build_year else ""
+    address = f"{region_name} {dong}" if region_name else dong
 
     if trade_type == "매매":
         price_display = _format_price(item.get("거래금액", "0"))
         lines.append(f"{index}. 🏢 {apt}")
-        lines.append(f"   📍 {dong} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   📍 {address} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
         lines.append(f"   💰 매매가: {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
     else:
@@ -117,7 +118,7 @@ def _format_item(item: dict, index: int, trade_type: str) -> list[str]:
         else:
             price_display = f"전세 {deposit}"
         lines.append(f"{index}. 🏢 {apt}")
-        lines.append(f"   📍 {dong} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
+        lines.append(f"   📍 {address} | {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
     if station_info or school_info or childcare_info:
@@ -291,7 +292,7 @@ async def search_property(
 
     lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월)\n"]
     for i, item in enumerate(filtered, 1):
-        lines.extend(_format_item(item, i, trade_type))
+        lines.extend(_format_item(item, i, trade_type, region_name))
 
     return "\n".join(lines)
 
@@ -389,7 +390,7 @@ async def find_midpoint_property(
 
     lines.append(f"최근 {trade_type} 실거래 내역:\n")
     for i, item in enumerate(unique_items, 1):
-        lines.extend(_format_item(item, i, trade_type))
+        lines.extend(_format_item(item, i, trade_type, region_name))
 
     return "\n".join(lines)
 
