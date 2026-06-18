@@ -137,7 +137,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         if childcare_info:
             for s in childcare_info.split(" / "):
                 lines.append(f"      • {s}")
-    map_query = urllib.parse.quote(f"{apt} {address}")
+    map_query = urllib.parse.quote(address)
     lines.append(f"   🗺️ 카카오맵: https://map.kakao.com/?q={map_query}")
     lines.append("")
     return lines
@@ -544,7 +544,7 @@ async def get_market_price(
             sido = get_sido(region_code) if region_code else ""
             addr = " ".join(p for p in [sido, region_name, dong, jibun] if p)
             by = f", 건축 {build_year}년" if build_year else ""
-            map_query = urllib.parse.quote(f"{apt} {addr}")
+            map_query = urllib.parse.quote(addr)
             lines.append(f"  {idx}. 🏢 {apt} ({addr})")
             lines.append(f"     📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{by}")
             lines.append(f"     💰 매매가: {price}")
@@ -590,7 +590,7 @@ async def get_market_price(
                 price_display = f"보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원"
             else:
                 price_display = f"전세 {deposit}"
-            map_query = urllib.parse.quote(f"{apt} {addr}")
+            map_query = urllib.parse.quote(addr)
             lines.append(f"  {idx}. 🏢 {apt} ({addr})")
             lines.append(f"     📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{by}")
             lines.append(f"     💰 {price_display}")
