@@ -10,30 +10,27 @@ DATA_GO_KR_API_KEY = os.getenv("DATA_GO_KR_API_KEY", "")
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 
 # 국토교통부 실거래가 API 엔드포인트
-MOLIT_APT_TRADE_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade"
-MOLIT_APT_RENT_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent"
+API_ENDPOINTS = {
+    # 아파트
+    ("아파트", "매매"): "https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
+    ("아파트", "전월세"): "https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent",
+    # 오피스텔
+    ("오피스텔", "매매"): "https://apis.data.go.kr/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
+    ("오피스텔", "전월세"): "https://apis.data.go.kr/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent",
+    # 연립다세대 (빌라)
+    ("연립다세대", "매매"): "https://apis.data.go.kr/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade",
+    ("연립다세대", "전월세"): "https://apis.data.go.kr/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent",
+}
 
 # 카카오 API
 KAKAO_KEYWORD_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 
 
-async def fetch_apt_trade(region_code: str, deal_ymd: str) -> list[dict]:
-    """아파트 매매 실거래가 조회"""
-    params = {
-        "serviceKey": DATA_GO_KR_API_KEY,
-        "LAWD_CD": region_code,
-        "DEAL_YMD": deal_ymd,
-        "numOfRows": "100",
-        "pageNo": "1",
-    }
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(MOLIT_APT_TRADE_URL, params=params)
-        resp.raise_for_status()
-    return _parse_molit_xml(resp.text, trade_type="매매")
-
-
-async def fetch_apt_rent(region_code: str, deal_ymd: str) -> list[dict]:
-    """아파트 전월세 실거래가 조회"""
+async def fetch_trade(region_code: str, deal_ymd: str, property_type: str = "아파트") -> list[dict]:
+    """매매 실거래가 조회"""
+    url = API_ENDPOINTS.get((property_type, "매매"))
+    if not url:
+        return []
     params = {
         "serviceKey": DATA_GO_KR_API_KEY,
         "LAWD_CD": region_code,
@@ -43,22 +40,47 @@ async def fetch_apt_rent(region_code: str, deal_ymd: str) -> list[dict]:
     }
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(MOLIT_APT_RENT_URL, params=params)
+            resp = await client.get(url, params=params)
             resp.raise_for_status()
-        return _parse_molit_xml(resp.text, trade_type="전월세")
+        return _parse_molit_xml(resp.text, trade_type="매매", property_type=property_type)
     except httpx.HTTPStatusError:
         return []
 
 
-def _parse_molit_xml(xml_text: str, trade_type: str) -> list[dict]:
+async def fetch_rent(region_code: str, deal_ymd: str, property_type: str = "아파트") -> list[dict]:
+    """전월세 실거래가 조회"""
+    url = API_ENDPOINTS.get((property_type, "전월세"))
+    if not url:
+        return []
+    params = {
+        "serviceKey": DATA_GO_KR_API_KEY,
+        "LAWD_CD": region_code,
+        "DEAL_YMD": deal_ymd,
+        "numOfRows": "100",
+        "pageNo": "1",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url, params=params)
+            resp.raise_for_status()
+        return _parse_molit_xml(resp.text, trade_type="전월세", property_type=property_type)
+    except httpx.HTTPStatusError:
+        return []
+
+
+def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아파트") -> list[dict]:
     """국토교통부 XML 응답 파싱"""
     results = []
     root = ElementTree.fromstring(xml_text)
     items = root.findall(".//item")
     for item in items:
-        data: dict = {"거래유형": trade_type}
+        data: dict = {"거래유형": trade_type, "매물종류": property_type}
         field_map = {
+            # 이름 필드 (API마다 태그명이 다를 수 있음)
             "aptNm": "아파트",
+            "offiNm": "아파트",
+            "mhouseNm": "아파트",
+            # 공통 필드
             "umdNm": "법정동",
             "excluUseAr": "전용면적",
             "floor": "층",
@@ -73,7 +95,9 @@ def _parse_molit_xml(xml_text: str, trade_type: str) -> list[dict]:
         for xml_tag, key in field_map.items():
             el = item.find(xml_tag)
             if el is not None and el.text:
-                data[key] = el.text.strip()
+                val = el.text.strip()
+                if val:
+                    data[key] = val
         if data.get("아파트"):
             results.append(data)
     return results

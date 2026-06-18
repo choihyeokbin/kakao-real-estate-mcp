@@ -13,11 +13,13 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 from kakao_real_estate.api_client import (
-    fetch_apt_rent,
-    fetch_apt_trade,
+    fetch_rent,
+    fetch_trade,
     kakao_coord_to_region,
     kakao_keyword_search,
 )
+
+VALID_PROPERTY_TYPES = ["아파트", "오피스텔", "연립다세대"]
 from kakao_real_estate.region_code import find_region_code
 
 load_dotenv()
@@ -133,6 +135,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
 @mcp.tool()
 async def search_property(
     region: str,
+    property_type: str = "아파트",
     trade_type: str = "전세",
     min_price: int = 0,
     max_price: int = 999999,
@@ -142,11 +145,16 @@ async def search_property(
 
     Args:
         region: 검색할 지역 (예: '강남구', '강남역', '화곡동', '서울 마포구 공덕동')
+        property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
         trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 전세)
         min_price: 최소 가격 (만원 단위, 기본값: 0)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
         max_results: 최대 결과 수 (기본값: 5)
     """
+    if property_type == "빌라":
+        property_type = "연립다세대"
+    if property_type not in VALID_PROPERTY_TYPES:
+        return f"매물 종류는 '아파트', '오피스텔', '연립다세대(빌라)' 중 하나를 선택해 주세요."
     resolved = await _resolve_region(region)
     if not resolved:
         return f"'{region}'에 해당하는 지역을 찾을 수 없습니다. 구 이름이나 역 이름으로 검색해 주세요."
@@ -157,9 +165,9 @@ async def search_property(
     all_items: list[dict] = []
     for ym in months:
         if trade_type == "매매":
-            items = await fetch_apt_trade(region_code, ym)
+            items = await fetch_trade(region_code, ym, property_type)
         else:
-            items = await fetch_apt_rent(region_code, ym)
+            items = await fetch_rent(region_code, ym, property_type)
         all_items.extend(items)
 
     # 동 필터링
@@ -199,6 +207,7 @@ async def search_property(
 async def find_midpoint_property(
     location_a: str,
     location_b: str,
+    property_type: str = "아파트",
     trade_type: str = "전세",
     max_price: int = 999999,
     max_results: int = 5,
@@ -208,10 +217,15 @@ async def find_midpoint_property(
     Args:
         location_a: 첫 번째 출발지 (예: '판교역', '삼성전자', '서울대학교')
         location_b: 두 번째 출발지 (예: '여의도역', 'LG트윈타워', '고려대학교')
+        property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
         trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 전세)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
         max_results: 최대 결과 수 (기본값: 5)
     """
+    if property_type == "빌라":
+        property_type = "연립다세대"
+    if property_type not in VALID_PROPERTY_TYPES:
+        return f"매물 종류는 '아파트', '오피스텔', '연립다세대(빌라)' 중 하나를 선택해 주세요."
     coord_a = await kakao_keyword_search(location_a)
     coord_b = await kakao_keyword_search(location_b)
 
@@ -240,9 +254,9 @@ async def find_midpoint_property(
     all_items: list[dict] = []
     for ym in months:
         if trade_type == "매매":
-            items = await fetch_apt_trade(region_code, ym)
+            items = await fetch_trade(region_code, ym, property_type)
         else:
-            items = await fetch_apt_rent(region_code, ym)
+            items = await fetch_rent(region_code, ym, property_type)
         all_items.extend(items)
 
     filtered = []
@@ -289,15 +303,21 @@ async def find_midpoint_property(
 async def get_market_price(
     apartment_name: str,
     region: str = "",
+    property_type: str = "아파트",
     months: int = 6,
 ) -> str:
-    """아파트의 실거래가(매매/전월세) 시세를 조회합니다. 최근 거래 가격 추이를 확인할 수 있습니다.
+    """부동산의 실거래가(매매/전월세) 시세를 조회합니다. 최근 거래 가격 추이를 확인할 수 있습니다.
 
     Args:
-        apartment_name: 아파트 이름 (예: '래미안푸르지오', '반포자이', '헬리오시티')
+        apartment_name: 건물 이름 (예: '래미안푸르지오', '반포자이', '헬리오시티')
         region: 지역 (예: '마포구', '서초구', '화곡동'). 비워두면 카카오맵에서 자동 검색합니다.
+        property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
         months: 조회할 기간 (최근 n개월, 기본값: 6, 최대: 12)
     """
+    if property_type == "빌라":
+        property_type = "연립다세대"
+    if property_type not in VALID_PROPERTY_TYPES:
+        return f"매물 종류는 '아파트', '오피스텔', '연립다세대(빌라)' 중 하나를 선택해 주세요."
     months = min(months, 12)
 
     if region:
@@ -325,8 +345,8 @@ async def get_market_price(
     rent_items: list[dict] = []
 
     for ym in month_list:
-        trades = await fetch_apt_trade(region_code, ym)
-        rents = await fetch_apt_rent(region_code, ym)
+        trades = await fetch_trade(region_code, ym, property_type)
+        rents = await fetch_rent(region_code, ym, property_type)
         trade_items.extend(trades)
         rent_items.extend(rents)
 
