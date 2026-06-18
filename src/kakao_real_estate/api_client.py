@@ -94,6 +94,7 @@ def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아�
             "dealAmount": "거래금액",
             "deposit": "보증금액",
             "monthlyRent": "월세금액",
+            "jibun": "지번",
         }
         for xml_tag, key in field_map.items():
             el = item.find(xml_tag)

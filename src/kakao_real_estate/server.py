@@ -101,8 +101,10 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "")
         jibun = apt[1:-1]
         apt = f"{dong} {jibun} {prop_type}"
 
+    jibun = item.get("지번", "")
     build_info = f" | 건축 {build_year}년" if build_year else ""
-    address = f"{region_name} {dong}" if region_name else dong
+    address_parts = [region_name, dong, jibun] if region_name else [dong, jibun]
+    address = " ".join(p for p in address_parts if p)
 
     if trade_type == "매매":
         price_display = _format_price(item.get("거래금액", "0"))
