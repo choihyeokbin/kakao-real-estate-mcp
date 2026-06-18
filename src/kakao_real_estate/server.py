@@ -22,7 +22,7 @@ from kakao_real_estate.api_client import (
 )
 
 VALID_PROPERTY_TYPES = ["아파트", "오피스텔", "연립다세대"]
-from kakao_real_estate.region_code import find_region_code
+from kakao_real_estate.region_code import find_region_code, get_sido
 
 load_dotenv()
 
@@ -80,7 +80,7 @@ def _filter_by_dong(items: list[dict], dong: str) -> list[dict]:
     return [item for item in items if dong_name in item.get("법정동", "")]
 
 
-def _format_item(item: dict, index: int, trade_type: str, region_name: str = "") -> list[str]:
+def _format_item(item: dict, index: int, trade_type: str, region_name: str = "", region_code: str = "") -> list[str]:
     """매물 한 건을 포맷팅된 문자열 리스트로 변환"""
     lines = []
     apt = item.get("아파트", "정보없음")
@@ -103,7 +103,8 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "")
 
     jibun = item.get("지번", "")
     build_info = f" | 건축 {build_year}년" if build_year else ""
-    address_parts = [region_name, dong, jibun] if region_name else [dong, jibun]
+    sido = get_sido(region_code) if region_code else ""
+    address_parts = [sido, region_name, dong, jibun]
     address = " ".join(p for p in address_parts if p)
 
     if trade_type == "매매":
@@ -294,7 +295,7 @@ async def search_property(
 
     lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월)\n"]
     for i, item in enumerate(filtered, 1):
-        lines.extend(_format_item(item, i, trade_type, region_name))
+        lines.extend(_format_item(item, i, trade_type, region_name, region_code))
 
     return "\n".join(lines)
 
@@ -392,7 +393,7 @@ async def find_midpoint_property(
 
     lines.append(f"최근 {trade_type} 실거래 내역:\n")
     for i, item in enumerate(unique_items, 1):
-        lines.extend(_format_item(item, i, trade_type, region_name))
+        lines.extend(_format_item(item, i, trade_type, region_name, region_code))
 
     return "\n".join(lines)
 
