@@ -102,7 +102,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         apt = f"{dong} {jibun} {prop_type}"
 
     jibun = item.get("지번", "")
-    build_info = f"\n   🏗️ 건축년도: {build_year}년" if build_year else ""
+    build_info = f", 건축 {build_year}년" if build_year else ""
     sido = get_sido(region_code) if region_code else ""
     address_parts = [sido, region_name, dong, jibun]
     address = " ".join(p for p in address_parts if p)
