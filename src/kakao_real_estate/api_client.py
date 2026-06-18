@@ -126,6 +126,26 @@ async def kakao_keyword_search(query: str) -> dict | None:
     }
 
 
+async def kakao_nearby_stations(dong_name: str, region_name: str) -> list[dict]:
+    """법정동 근처 지하철역 검색 (최대 3개)"""
+    headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
+    params = {"query": f"{region_name} {dong_name} 지하철역", "size": "3", "category_group_code": "SW8"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
+            resp.raise_for_status()
+        body = resp.json()
+        stations = []
+        for doc in body.get("documents", []):
+            stations.append({
+                "name": doc.get("place_name", ""),
+                "distance": doc.get("distance", ""),
+            })
+        return stations
+    except httpx.HTTPStatusError:
+        return []
+
+
 async def kakao_coord_to_region(x: float, y: float) -> str | None:
     """좌표 → 행정구역(구) 변환"""
     headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
