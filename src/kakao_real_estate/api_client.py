@@ -6,8 +6,11 @@ import os
 import httpx
 from xml.etree import ElementTree
 
-DATA_GO_KR_API_KEY = os.getenv("DATA_GO_KR_API_KEY", "")
-KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
+def _data_key() -> str:
+    return os.getenv("DATA_GO_KR_API_KEY", "")
+
+def _kakao_key() -> str:
+    return os.getenv("KAKAO_REST_API_KEY", "")
 
 # 국토교통부 실거래가 API 엔드포인트
 API_ENDPOINTS = {
@@ -32,7 +35,7 @@ async def fetch_trade(region_code: str, deal_ymd: str, property_type: str = "아
     if not url:
         return []
     params = {
-        "serviceKey": DATA_GO_KR_API_KEY,
+        "serviceKey": _data_key(),
         "LAWD_CD": region_code,
         "DEAL_YMD": deal_ymd,
         "numOfRows": "100",
@@ -53,7 +56,7 @@ async def fetch_rent(region_code: str, deal_ymd: str, property_type: str = "아�
     if not url:
         return []
     params = {
-        "serviceKey": DATA_GO_KR_API_KEY,
+        "serviceKey": _data_key(),
         "LAWD_CD": region_code,
         "DEAL_YMD": deal_ymd,
         "numOfRows": "100",
@@ -105,7 +108,7 @@ def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아�
 
 async def kakao_keyword_search(query: str) -> dict | None:
     """카카오 키워드 장소 검색 → 첫 번째 결과의 좌표 반환"""
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
     params = {"query": query, "size": "1"}
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
@@ -125,7 +128,7 @@ async def kakao_keyword_search(query: str) -> dict | None:
 
 async def kakao_coord_to_region(x: float, y: float) -> str | None:
     """좌표 → 행정구역(구) 변환"""
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
     url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
     params = {"x": str(x), "y": str(y)}
     async with httpx.AsyncClient(timeout=10) as client:
