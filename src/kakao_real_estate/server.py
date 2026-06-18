@@ -117,7 +117,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         deposit = _format_price(item.get("보증금액", "0"))
         monthly = item.get("월세금액", "0").strip()
         if monthly and monthly != "0":
-            price_display = f"보증금 {deposit} / 월세 {int(monthly):,}만원"
+            price_display = f"보증금 {deposit} / 월세 {int(float(monthly)):,}만원"
         else:
             price_display = f"전세 {deposit}"
         lines.append(f"{index}. 🏢 {apt} ({address})")
@@ -566,7 +566,7 @@ async def get_market_price(
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
             if monthly and monthly != "0":
-                lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | 보증금 {deposit} / 월세 {int(monthly):,}만원")
+                lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | 보증금 {deposit} / 월세 {int(float(monthly)):,}만원")
             else:
                 lines.append(f"    {date} | {_pyeong(area)}평 | {floor}층 | 전세 {deposit}")
         lines.append("")
