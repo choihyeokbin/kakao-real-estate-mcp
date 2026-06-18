@@ -530,11 +530,15 @@ async def get_market_price(
         lines.append("")
         lines.append("  최근 거래:")
         for item in matched_trades[:5]:
+            apt = item.get("아파트", "")
+            dong = item.get("법정동", "")
+            jibun = item.get("지번", "")
             area = float(item.get("전용면적", "0"))
             price = _format_price(item.get("거래금액", "0"))
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
-            lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, {price}")
+            location = f"{apt} ({dong} {jibun})".strip()
+            lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, {price}")
         lines.append("")
 
     if matched_rents:
@@ -558,15 +562,19 @@ async def get_market_price(
         lines.append("")
         lines.append("  최근 거래:")
         for item in matched_rents[:5]:
+            apt = item.get("아파트", "")
+            dong = item.get("법정동", "")
+            jibun = item.get("지번", "")
             area = float(item.get("전용면적", "0"))
             deposit = _format_price(item.get("보증금액", "0"))
             monthly = item.get("월세금액", "0").strip()
             floor = item.get("층", "?")
             date = f"{item.get('년', '')}.{item.get('월', '')}.{item.get('일', '')}"
+            location = f"{apt} ({dong} {jibun})".strip()
             if monthly and monthly != "0":
-                lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, 보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원")
+                lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, 보증금 {deposit} / 월세 {int(float(monthly.replace(',', ''))):,}만원")
             else:
-                lines.append(f"    {date}, {_pyeong(area)}평, {floor}층, 전세 {deposit}")
+                lines.append(f"    {location}, {date}, {_pyeong(area)}평, {floor}층, 전세 {deposit}")
         lines.append("")
 
     return "\n".join(lines)
