@@ -124,7 +124,6 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         lines.append(f"   면적: {area}㎡ ({_pyeong(area)}평) | {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
-    if station_info or school_info or childcare_info:
     if station_info:
         lines.append(f"   🚇 근처 역")
         for s in station_info.split(" / "):
