@@ -261,13 +261,15 @@ async def search_property(
     region_name, region_code, dong = resolved
     months = _recent_months(3)
 
+    # 병렬로 API 호출
+    if trade_type == "매매":
+        tasks = [fetch_trade(region_code, ym, property_type) for ym in months]
+    else:
+        tasks = [fetch_rent(region_code, ym, property_type) for ym in months]
+    results = await asyncio.gather(*tasks)
     all_items: list[dict] = []
-    for ym in months:
-        if trade_type == "매매":
-            items = await fetch_trade(region_code, ym, property_type)
-        else:
-            items = await fetch_rent(region_code, ym, property_type)
-        all_items.extend(items)
+    for result in results:
+        all_items.extend(result)
 
     # 동 필터링
     if dong:
@@ -392,13 +394,15 @@ async def find_midpoint_property(
     dist_b = _haversine(coord_b["x"], coord_b["y"], mid_x, mid_y)
 
     months = _recent_months(3)
+    # 병렬로 API 호출
+    if trade_type == "매매":
+        tasks = [fetch_trade(region_code, ym, property_type) for ym in months]
+    else:
+        tasks = [fetch_rent(region_code, ym, property_type) for ym in months]
+    results = await asyncio.gather(*tasks)
     all_items: list[dict] = []
-    for ym in months:
-        if trade_type == "매매":
-            items = await fetch_trade(region_code, ym, property_type)
-        else:
-            items = await fetch_rent(region_code, ym, property_type)
-        all_items.extend(items)
+    for result in results:
+        all_items.extend(result)
 
     filtered = []
     for item in all_items:
@@ -447,7 +451,7 @@ async def get_market_price(
     apartment_name: str,
     region: str = "",
     property_type: str = "아파트",
-    months: int = 3,
+    months: int = 6,
 ) -> str:
     """[부동산 매물 검색] 부동산의 실거래가(매매/전월세) 시세를 조회합니다. 평형별 평균가, 최저가, 최고가와 최근 거래 내역을 확인할 수 있습니다.
 
@@ -455,13 +459,13 @@ async def get_market_price(
         apartment_name: 건물 이름 (예: '래미안푸르지오', '반포자이', '헬리오시티')
         region: 지역 (예: '마포구', '서초구', '화곡동'). 비워두면 카카오맵에서 자동 검색합니다.
         property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
-        months: 조회할 기간 (최근 n개월, 기본값: 3, 최대: 6)
+        months: 조회할 기간 (최근 n개월, 기본값: 6, 최대: 12)
     """
     if property_type == "빌라":
         property_type = "연립다세대"
     if property_type not in VALID_PROPERTY_TYPES:
         return f"매물 종류는 '아파트', '오피스텔', '연립다세대(빌라)' 중 하나를 선택해 주세요."
-    months = min(months, 6)
+    months = min(months, 12)
 
     if region:
         resolved = await _resolve_region(region)
@@ -484,14 +488,18 @@ async def get_market_price(
     region_name, region_code, dong = resolved
     month_list = _recent_months(months)
 
+    # 병렬로 API 호출 (속도 개선)
+    trade_tasks = [fetch_trade(region_code, ym, property_type) for ym in month_list]
+    rent_tasks = [fetch_rent(region_code, ym, property_type) for ym in month_list]
+    all_results = await asyncio.gather(*trade_tasks, *rent_tasks)
+
     trade_items: list[dict] = []
     rent_items: list[dict] = []
-
-    for ym in month_list:
-        trades = await fetch_trade(region_code, ym, property_type)
-        rents = await fetch_rent(region_code, ym, property_type)
-        trade_items.extend(trades)
-        rent_items.extend(rents)
+    for i, result in enumerate(all_results):
+        if i < len(month_list):
+            trade_items.extend(result)
+        else:
+            rent_items.extend(result)
 
     def match_apt(item: dict) -> bool:
         apt = item.get("아파트", "").replace(" ", "")
