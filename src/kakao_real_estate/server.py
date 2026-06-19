@@ -231,7 +231,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
 # ──────────────────────────────────────────────
 # Tool 1: 매물 검색 (실거래가 기반)
 # ──────────────────────────────────────────────
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 async def search_property(
     region: str,
     property_type: str = "아파트",
@@ -344,7 +344,7 @@ async def search_property(
 # ──────────────────────────────────────────────
 # Tool 2: 중간 지점 매물 추천
 # ──────────────────────────────────────────────
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 async def find_midpoint_property(
     location_a: str,
     location_b: str,
@@ -442,7 +442,7 @@ async def find_midpoint_property(
 # ──────────────────────────────────────────────
 # Tool 3: 실거래가/시세 조회
 # ──────────────────────────────────────────────
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 async def get_market_price(
     apartment_name: str,
     region: str = "",
