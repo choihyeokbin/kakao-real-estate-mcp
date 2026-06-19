@@ -447,7 +447,7 @@ async def get_market_price(
     apartment_name: str,
     region: str = "",
     property_type: str = "아파트",
-    months: int = 6,
+    months: int = 3,
 ) -> str:
     """[부동산 매물 검색] 부동산의 실거래가(매매/전월세) 시세를 조회합니다. 평형별 평균가, 최저가, 최고가와 최근 거래 내역을 확인할 수 있습니다.
 
@@ -455,13 +455,13 @@ async def get_market_price(
         apartment_name: 건물 이름 (예: '래미안푸르지오', '반포자이', '헬리오시티')
         region: 지역 (예: '마포구', '서초구', '화곡동'). 비워두면 카카오맵에서 자동 검색합니다.
         property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
-        months: 조회할 기간 (최근 n개월, 기본값: 6, 최대: 12)
+        months: 조회할 기간 (최근 n개월, 기본값: 3, 최대: 6)
     """
     if property_type == "빌라":
         property_type = "연립다세대"
     if property_type not in VALID_PROPERTY_TYPES:
         return f"매물 종류는 '아파트', '오피스텔', '연립다세대(빌라)' 중 하나를 선택해 주세요."
-    months = min(months, 12)
+    months = min(months, 6)
 
     if region:
         resolved = await _resolve_region(region)
