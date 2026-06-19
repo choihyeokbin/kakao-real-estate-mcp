@@ -494,8 +494,9 @@ async def get_market_price(
         rent_items.extend(rents)
 
     def match_apt(item: dict) -> bool:
-        apt = item.get("아파트", "")
-        return apartment_name.replace(" ", "") in apt.replace(" ", "")
+        apt = item.get("아파트", "").replace(" ", "")
+        name = apartment_name.replace(" ", "").replace("아파트", "").replace("오피스텔", "").replace("빌라", "")
+        return name in apt or apt in name
 
     matched_trades = [i for i in trade_items if match_apt(i)]
     matched_rents = [i for i in rent_items if match_apt(i)]
