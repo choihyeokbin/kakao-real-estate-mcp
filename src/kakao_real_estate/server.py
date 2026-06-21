@@ -305,7 +305,7 @@ async def search_property(
             avg_p = _format_price(str(sum(all_prices) // len(all_prices)))
             return (
                 f"{display_name} 지역에서 조건에 맞는 {trade_type} 거래 기록이 없습니다.\n"
-                f"참고: 해당 지역 {property_type} {trade_type} 최저가는 {min_p}이며, 평균 {avg_p}입니다. (최근 3개월, {len(all_prices)}건)"
+                f"참고: 해당 지역 {property_type} {trade_type} 최저가는 {min_p}이며, 평균 {avg_p}입니다. (최근 1개월, {len(all_prices)}건)"
             )
         # 다른 매물 종류 시세 참고 제공
         alt_types = [t for t in VALID_PROPERTY_TYPES if t != property_type]
@@ -329,14 +329,14 @@ async def search_property(
                     prices.append(int(p.replace(",", "").strip()))
                 min_p = _format_price(str(min(prices)))
                 alt_info.append(f"- {alt} {trade_type}: 최저 {min_p} ({len(prices)}건)")
-        msg = f"{display_name} 지역에서 최근 3개월 내 {property_type} {trade_type} 거래 기록이 없습니다."
+        msg = f"{display_name} 지역에서 최근 1개월 내 {property_type} {trade_type} 거래 기록이 없습니다."
         if alt_info:
             msg += f"\n\n참고로 같은 지역의 다른 매물 종류 시세입니다:\n" + "\n".join(alt_info)
         return msg
 
     await _add_nearby_info(filtered, region_name)
 
-    lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월)\n"]
+    lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 1개월)\n"]
     for i, item in enumerate(filtered, 1):
         lines.extend(_format_item(item, i, trade_type, region_name, region_code))
 
@@ -431,7 +431,7 @@ async def find_midpoint_property(
     ]
 
     if not unique_items:
-        lines.append(f"{region_name} 지역에서 최근 3개월 내 조건에 맞는 {trade_type} 거래 기록이 없습니다.")
+        lines.append(f"{region_name} 지역에서 최근 1개월 내 조건에 맞는 {trade_type} 거래 기록이 없습니다.")
         return "\n".join(lines)
 
     await _add_nearby_info(unique_items, region_name)
