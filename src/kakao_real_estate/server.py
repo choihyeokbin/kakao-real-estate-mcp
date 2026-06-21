@@ -259,7 +259,7 @@ async def search_property(
         return f"'{region}'에 해당하는 지역을 찾을 수 없습니다. 구 이름이나 역 이름으로 검색해 주세요."
 
     region_name, region_code, dong = resolved
-    months = _recent_months(3)
+    months = _recent_months(1)
 
     # 병렬로 API 호출
     if trade_type == "매매":
@@ -393,7 +393,7 @@ async def find_midpoint_property(
     dist_a = _haversine(coord_a["x"], coord_a["y"], mid_x, mid_y)
     dist_b = _haversine(coord_b["x"], coord_b["y"], mid_x, mid_y)
 
-    months = _recent_months(3)
+    months = _recent_months(1)
     # 병렬로 API 호출
     if trade_type == "매매":
         tasks = [fetch_trade(region_code, ym, property_type) for ym in months]
