@@ -205,7 +205,7 @@ LOCATION_DATA: dict[str, tuple[str, float, float]] = {
     "광명역": ("광명시", 126.8851, 37.4152),
     "과천역": ("과천시", 126.9876, 37.4332),
     "용인역": ("용인시", 127.1085, 37.2343),
-    "동탄역": ("화성시", 127.0985, 37.2080),
+    "동탄역": ("화성시(동탄)", 127.0985, 37.2080),
     "일산역": ("고양시", 126.7706, 37.6559),
     "별내역": ("남양주시", 127.1183, 37.6428),
     "하남역": ("하남시", 127.2034, 37.5476),
@@ -246,6 +246,21 @@ def find_region_code(keyword: str) -> tuple[str, str] | None:
     # 직접 지역코드 검색
     if keyword in REGION_CODES:
         return keyword, REGION_CODES[keyword]
+
+    # 세분화 지역 매칭 (동탄구→동탄, 분당구→분당 등)
+    SUB_REGION_MAP = {
+        "동탄": "화성시(동탄)", "봉담": "화성시(봉담)",
+        "분당": "성남시(분당)", "중원": "성남시(중원)",
+        "영통": "수원시(영통)", "권선": "수원시(권선)", "팔달": "수원시(팔달)",
+        "일산서": "고양시(일산서)", "일산동": "고양시(일산동)",
+        "수지": "용인시(수지)", "기흥": "용인시(기흥)",
+        "단원": "안산시(단원)",
+        "옥길": "부천시(옥길)", "원종": "부천시(원종)",
+    }
+    for sub_key, region_key in SUB_REGION_MAP.items():
+        if sub_key in keyword:
+            if region_key in REGION_CODES:
+                return region_key, REGION_CODES[region_key]
 
     # 부분 매칭
     for name in LOCATION_DATA:

@@ -216,14 +216,17 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
     # 카카오맵으로 검색
     coord = await kakao_keyword_search(keyword)
     if coord:
-        region_name = await kakao_coord_to_region(coord["x"], coord["y"])
-        if region_name:
-            result = find_region_code(region_name)
-            if result:
-                # 카카오맵 주소에서 동 이름 추출 시도
-                if not dong:
-                    dong = _extract_dong(coord.get("address", ""))
-                return result[0], result[1], dong
+        address = coord.get("address", "")
+        # 주소에서 세분화 지역 매칭 시도 (예: "화성시 동탄구" → 동탄)
+        result = find_region_code(address)
+        if not result:
+            region_name = await kakao_coord_to_region(coord["x"], coord["y"])
+            if region_name:
+                result = find_region_code(region_name)
+        if result:
+            if not dong:
+                dong = _extract_dong(address)
+            return result[0], result[1], dong
 
     return None
 
