@@ -211,6 +211,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
     # 먼저 내장 코드에서 검색
     result = find_region_code(keyword)
     if result:
+        # 역 이름이나 장소명으로 검색한 경우 동 필터링 안 함 (범위가 너무 좁아짐)
         return result[0], result[1], dong
 
     # 카카오맵으로 검색
