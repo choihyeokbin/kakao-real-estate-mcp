@@ -235,6 +235,72 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
 # ──────────────────────────────────────────────
 # Tool 1: 매물 검색 (실거래가 기반)
 # ──────────────────────────────────────────────
+def _calc_livability_score(item: dict) -> int:
+    """생활 편의 점수 계산 (역세권, 학군, 신축 등)"""
+    score = 0
+
+    # 지하철역 거리
+    station = item.get("_nearest_station", "")
+    if station:
+        for part in station.split(" / "):
+            if "도보" in part:
+                try:
+                    mins = int(part.split("도보 ")[1].split("분")[0])
+                    if mins <= 5:
+                        score += 3
+                    elif mins <= 10:
+                        score += 2
+                    elif mins <= 15:
+                        score += 1
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+    # 학교 거리
+    school = item.get("_nearest_school", "")
+    if school:
+        for part in school.split(" / "):
+            if "도보" in part:
+                try:
+                    mins = int(part.split("도보 ")[1].split("분")[0])
+                    if mins <= 5:
+                        score += 2
+                    elif mins <= 10:
+                        score += 1
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+    # 어린이집 거리
+    childcare = item.get("_nearest_childcare", "")
+    if childcare:
+        for part in childcare.split(" / "):
+            if "도보" in part:
+                try:
+                    mins = int(part.split("도보 ")[1].split("분")[0])
+                    if mins <= 5:
+                        score += 1
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+    # 건축년도 (신축일수록 가산)
+    build_year = item.get("건축년도", "")
+    if build_year:
+        try:
+            age = datetime.now().year - int(build_year)
+            if age <= 5:
+                score += 3
+            elif age <= 10:
+                score += 2
+            elif age <= 20:
+                score += 1
+        except ValueError:
+            pass
+
+    return score
+
+
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 async def search_property(
     region: str,
@@ -243,8 +309,9 @@ async def search_property(
     min_price: int = 0,
     max_price: int = 999999,
     max_results: int = 5,
+    sort_by: str = "최신순",
 ) -> str:
-    """[부동산 매물 검색] 지역 기반 부동산 실거래 매물을 검색합니다. 주변 역, 학교, 어린이집 정보와 카카오맵 링크도 함께 제공합니다.
+    """[부동산 매물 검색] 지역 기반 부동산 실거래 매물을 검색합니다. 주변 역, 학교, 어린이집 정보와 카카오맵 링크도 함께 제공합니다. '살기좋은순'으로 정렬하면 역세권, 학군, 신축 여부를 종합 평가하여 추천합니다.
 
     Args:
         region: 검색할 지역 (예: '강남구', '강남역', '화곡동', '서울 마포구 공덕동')
@@ -253,6 +320,7 @@ async def search_property(
         min_price: 최소 가격 (만원 단위, 기본값: 0)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
         max_results: 최대 결과 수 (기본값: 5)
+        sort_by: 정렬 기준 - '최신순' 또는 '살기좋은순' (기본값: 최신순). 살기좋은순은 역세권(도보5분+3점), 학군(도보5분+2점), 어린이집(도보5분+1점), 신축5년이내(+3점) 등을 종합 평가합니다.
     """
     if property_type == "빌라":
         property_type = "연립다세대"
@@ -295,7 +363,6 @@ async def search_property(
             filtered.append(item)
 
     filtered.sort(key=lambda x: (x.get("년", ""), x.get("월", ""), x.get("일", "")), reverse=True)
-    filtered = filtered[:max_results]
 
     display_name = f"{region_name} {dong}" if dong else region_name
     if not filtered:
@@ -357,9 +424,21 @@ async def search_property(
 
     await _add_nearby_info(filtered, region_name)
 
-    lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월)\n"]
+    # 살기좋은순 정렬
+    if sort_by == "살기좋은순":
+        for item in filtered:
+            item["_livability"] = _calc_livability_score(item)
+        filtered.sort(key=lambda x: x.get("_livability", 0), reverse=True)
+
+    filtered = filtered[:max_results]
+
+    sort_label = " (살기좋은순 🏆)" if sort_by == "살기좋은순" else ""
+    lines = [f"📍 {display_name} 최근 {trade_type} 실거래 내역 (최근 3개월){sort_label}\n"]
     for i, item in enumerate(filtered, 1):
         lines.extend(_format_item(item, i, trade_type, region_name, region_code))
+        if sort_by == "살기좋은순":
+            score = item.get("_livability", 0)
+            lines.insert(-1, f"   ⭐ 생활편의 점수: {score}점")
 
     return "\n".join(lines)
 
