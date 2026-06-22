@@ -624,12 +624,27 @@ async def get_market_price(
     return "\n".join(lines)
 
 
+async def _warmup():
+    """서버 시작 시 API 워밍업 (첫 호출 타임아웃 방지)"""
+    try:
+        print("워밍업 시작...")
+        await asyncio.gather(
+            fetch_trade("11680", datetime.now().strftime("%Y%m"), "아파트"),
+            kakao_keyword_search("서울역"),
+        )
+        print("워밍업 완료!")
+    except Exception:
+        print("워밍업 실패 (무시)")
+
+
 def main():
     import sys
 
     if "--stdio" in sys.argv:
         mcp.run(transport="stdio")
     else:
+        # 워밍업 후 서버 시작
+        asyncio.get_event_loop().run_until_complete(_warmup())
         mcp.run(transport="streamable-http")
 
 
