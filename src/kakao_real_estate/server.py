@@ -282,7 +282,10 @@ async def search_property(
             price_str = item.get("거래금액", "0")
         else:
             price_str = item.get("보증금액", item.get("거래금액", "0"))
-        price = int(price_str.replace(",", "").strip())
+        try:
+            price = int(price_str.replace(",", "").strip())
+        except (ValueError, AttributeError):
+            continue
         if min_price <= price <= max_price:
             item["_price"] = price
             filtered.append(item)
@@ -295,11 +298,14 @@ async def search_property(
         # 전체 매물에서 최저가 정보 제공
         all_prices = []
         for item in all_items:
-            if trade_type == "매매":
-                p = item.get("거래금액", "0")
-            else:
-                p = item.get("보증금액", item.get("거래금액", "0"))
-            all_prices.append(int(p.replace(",", "").strip()))
+            try:
+                if trade_type == "매매":
+                    p = item.get("거래금액", "0")
+                else:
+                    p = item.get("보증금액", item.get("거래금액", "0"))
+                all_prices.append(int(p.replace(",", "").strip()))
+            except (ValueError, AttributeError):
+                continue
         if all_prices:
             min_p = _format_price(str(min(all_prices)))
             avg_p = _format_price(str(sum(all_prices) // len(all_prices)))
@@ -307,28 +313,39 @@ async def search_property(
                 f"{display_name} 지역에서 조건에 맞는 {trade_type} 거래 기록이 없습니다.\n"
                 f"참고: 해당 지역 {property_type} {trade_type} 최저가는 {min_p}이며, 평균 {avg_p}입니다. (최근 3개월, {len(all_prices)}건)"
             )
-        # 다른 매물 종류 시세 참고 제공
+        # 다른 매물 종류 시세 참고 제공 (병렬 호출)
         alt_types = [t for t in VALID_PROPERTY_TYPES if t != property_type]
-        alt_info = []
+        alt_tasks = []
         for alt in alt_types:
-            alt_items: list[dict] = []
-            for ym in months:
-                if trade_type == "매매":
-                    alt_items.extend(await fetch_trade(region_code, ym, alt))
-                else:
-                    alt_items.extend(await fetch_rent(region_code, ym, alt))
+            if trade_type == "매매":
+                alt_tasks.extend([(alt, fetch_trade(region_code, ym, alt)) for ym in months])
+            else:
+                alt_tasks.extend([(alt, fetch_rent(region_code, ym, alt)) for ym in months])
+
+        alt_results = await asyncio.gather(*[t[1] for t in alt_tasks])
+        alt_by_type: dict[str, list[dict]] = {}
+        for i, result in enumerate(alt_results):
+            alt_type = alt_tasks[i][0]
+            alt_by_type.setdefault(alt_type, []).extend(result)
+
+        alt_info = []
+        for alt, items in alt_by_type.items():
             if dong:
-                alt_items = _filter_by_dong(alt_items, dong)
-            if alt_items:
+                items = _filter_by_dong(items, dong)
+            if items:
                 prices = []
-                for item in alt_items:
-                    if trade_type == "매매":
-                        p = item.get("거래금액", "0")
-                    else:
-                        p = item.get("보증금액", item.get("거래금액", "0"))
-                    prices.append(int(p.replace(",", "").strip()))
-                min_p = _format_price(str(min(prices)))
-                alt_info.append(f"- {alt} {trade_type}: 최저 {min_p} ({len(prices)}건)")
+                for item in items:
+                    try:
+                        if trade_type == "매매":
+                            p = item.get("거래금액", "0")
+                        else:
+                            p = item.get("보증금액", item.get("거래금액", "0"))
+                        prices.append(int(p.replace(",", "").strip()))
+                    except (ValueError, AttributeError):
+                        continue
+                if prices:
+                    min_p = _format_price(str(min(prices)))
+                    alt_info.append(f"- {alt} {trade_type}: 최저 {min_p} ({len(prices)}건)")
         msg = f"{display_name} 지역에서 최근 3개월 내 {property_type} {trade_type} 거래 기록이 없습니다."
         if alt_info:
             msg += f"\n\n참고로 같은 지역의 다른 매물 종류 시세입니다:\n" + "\n".join(alt_info)
