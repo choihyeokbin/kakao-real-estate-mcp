@@ -239,7 +239,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
 async def search_property(
     region: str,
     property_type: str = "아파트",
-    trade_type: str = "전세",
+    trade_type: str = "매매",
     min_price: int = 0,
     max_price: int = 999999,
     max_results: int = 5,
@@ -249,7 +249,7 @@ async def search_property(
     Args:
         region: 검색할 지역 (예: '강남구', '강남역', '화곡동', '서울 마포구 공덕동')
         property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
-        trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 전세)
+        trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 매매)
         min_price: 최소 가격 (만원 단위, 기본값: 0)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
         max_results: 최대 결과 수 (기본값: 5)
@@ -372,7 +372,7 @@ async def find_midpoint_property(
     location_a: str,
     location_b: str,
     property_type: str = "아파트",
-    trade_type: str = "전세",
+    trade_type: str = "매매",
     max_price: int = 999999,
     max_results: int = 5,
 ) -> str:
@@ -382,7 +382,7 @@ async def find_midpoint_property(
         location_a: 첫 번째 출발지 (예: '판교역', '삼성전자', '서울대학교')
         location_b: 두 번째 출발지 (예: '여의도역', 'LG트윈타워', '고려대학교')
         property_type: 매물 종류 - '아파트', '오피스텔', '연립다세대' 중 하나 (기본값: 아파트). 빌라는 '연립다세대'로 검색.
-        trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 전세)
+        trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 매매)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
         max_results: 최대 결과 수 (기본값: 5)
     """
