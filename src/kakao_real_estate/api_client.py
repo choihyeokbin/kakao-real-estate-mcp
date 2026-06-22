@@ -110,6 +110,22 @@ def _parse_molit_xml(xml_text: str, trade_type: str, property_type: str = "아�
     return results
 
 
+async def kakao_address_to_coord(address: str) -> tuple[float, float] | None:
+    """주소 → (위도, 경도) 변환"""
+    try:
+        headers = {"Authorization": f"KakaoAK {_kakao_key()}"}
+        params = {"query": address, "size": "1"}
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(KAKAO_KEYWORD_SEARCH_URL, headers=headers, params=params)
+            resp.raise_for_status()
+        docs = resp.json().get("documents", [])
+        if not docs:
+            return None
+        return float(docs[0]["y"]), float(docs[0]["x"])
+    except Exception:
+        return None
+
+
 async def kakao_keyword_search(query: str) -> dict | None:
     """카카오 키워드 장소 검색 → 첫 번째 결과의 좌표 반환"""
     try:

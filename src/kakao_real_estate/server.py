@@ -17,6 +17,7 @@ from mcp.server.fastmcp import FastMCP
 from kakao_real_estate.api_client import (
     fetch_rent,
     fetch_trade,
+    kakao_address_to_coord,
     kakao_coord_to_region,
     kakao_keyword_search,
     kakao_nearby_places,
@@ -96,6 +97,7 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
     station_info = item.get("_nearest_station", "")
     school_info = item.get("_nearest_school", "")
     childcare_info = item.get("_nearest_childcare", "")
+    dist_from_center = item.get("_dist_from_center", None)
 
     # 이름이 지번만 있는 경우 보완 (예: "(918-15)" → "화곡동 918-15 오피스텔")
     if apt.startswith("(") and apt.endswith(")"):
@@ -125,6 +127,11 @@ def _format_item(item: dict, index: int, trade_type: str, region_name: str = "",
         lines.append(f"   📐 면적: {area}㎡ ({_pyeong(area)}평), {floor}층{build_info}")
         lines.append(f"   💰 {price_display}")
         lines.append(f"   📅 거래일: {year}.{month}.{day}")
+    if dist_from_center is not None and dist_from_center < 99999:
+        if dist_from_center >= 1000:
+            lines.append(f"   📏 검색 지점에서 {dist_from_center/1000:.1f}km")
+        else:
+            lines.append(f"   📏 검색 지점에서 {int(dist_from_center)}m")
     if station_info:
         lines.append(f"   🚇 근처 역")
         for s in station_info.split(" / "):
@@ -204,21 +211,25 @@ async def _add_nearby_info(items: list[dict], region_name: str) -> None:
             item["_nearest_childcare"] = info["childcare"]
 
 
-async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
-    """키워드에서 (구이름, 구코드, 동이름|None)을 반환"""
+async def _resolve_region(keyword: str) -> tuple[str, str, str | None, tuple[float, float] | None] | None:
+    """키워드에서 (구이름, 구코드, 동이름|None, 기준좌표|None)을 반환"""
     dong = _extract_dong(keyword)
+    center_coord = None
 
     # 먼저 내장 코드에서 검색
     result = find_region_code(keyword)
     if result:
-        # 역 이름이나 장소명으로 검색한 경우 동 필터링 안 함 (범위가 너무 좁아짐)
-        return result[0], result[1], dong
+        # 카카오맵에서 기준점 좌표 획득
+        coord = await kakao_keyword_search(keyword)
+        if coord:
+            center_coord = (float(coord["y"]), float(coord["x"]))
+        return result[0], result[1], dong, center_coord
 
     # 카카오맵으로 검색
     coord = await kakao_keyword_search(keyword)
     if coord:
+        center_coord = (float(coord["y"]), float(coord["x"]))
         address = coord.get("address", "")
-        # 주소에서 세분화 지역 매칭 시도 (예: "화성시 동탄구" → 동탄)
         result = find_region_code(address)
         if not result:
             region_name = await kakao_coord_to_region(coord["x"], coord["y"])
@@ -227,7 +238,7 @@ async def _resolve_region(keyword: str) -> tuple[str, str, str | None] | None:
         if result:
             if not dong:
                 dong = _extract_dong(address)
-            return result[0], result[1], dong
+            return result[0], result[1], dong, center_coord
 
     return None
 
@@ -330,7 +341,7 @@ async def search_property(
     if not resolved:
         return f"'{region}'에 해당하는 지역을 찾을 수 없습니다. 구 이름이나 역 이름으로 검색해 주세요."
 
-    region_name, region_code, dong = resolved
+    region_name, region_code, dong, center_coord = resolved
     months = _recent_months(3)
 
     # 병렬로 API 호출
@@ -422,6 +433,27 @@ async def search_property(
             msg += f"\n\n참고로 같은 지역의 다른 매물 종류 시세입니다:\n" + "\n".join(alt_info)
         return msg
 
+    # 기준좌표가 있으면 거리 기반 필터링 (상위 20건만 좌표 변환 → 병렬)
+    if center_coord:
+        candidates = filtered[:20]
+        addr_tasks = []
+        for item in candidates:
+            addr = f"{region_name} {item.get('법정동', '')} {item.get('지번', '')}"
+            addr_tasks.append(kakao_address_to_coord(addr))
+        coords = await asyncio.gather(*addr_tasks)
+
+        for item, coord in zip(candidates, coords):
+            if coord:
+                dist = _haversine(center_coord[0], center_coord[1], coord[0], coord[1])
+                item["_dist_from_center"] = dist
+            else:
+                item["_dist_from_center"] = 99999
+
+        # 2km 이내만 필터 + 가까운 순 정렬
+        filtered = [i for i in candidates if i.get("_dist_from_center", 99999) <= 2000]
+        if not filtered:
+            filtered = candidates  # 2km 이내 없으면 전체 유지
+
     await _add_nearby_info(filtered, region_name)
 
     # 살기좋은순 정렬
@@ -429,6 +461,8 @@ async def search_property(
         for item in filtered:
             item["_livability"] = _calc_livability_score(item)
         filtered.sort(key=lambda x: x.get("_livability", 0), reverse=True)
+    elif center_coord:
+        filtered.sort(key=lambda x: x.get("_dist_from_center", 99999))
 
     filtered = filtered[:max_results]
 
@@ -576,7 +610,7 @@ async def get_market_price(
             if region_name:
                 r = find_region_code(region_name)
                 dong = _extract_dong(coord.get("address", ""))
-                resolved = (r[0], r[1], dong) if r else None
+                resolved = (r[0], r[1], dong, None) if r else None
             else:
                 resolved = None
         else:
@@ -585,7 +619,7 @@ async def get_market_price(
     if not resolved:
         return f"'{apartment_name}'의 위치를 특정할 수 없습니다. region 파라미터에 구 이름을 함께 입력해 주세요. (예: region='마포구')"
 
-    region_name, region_code, dong = resolved
+    region_name, region_code, dong, _ = resolved
     month_list = _recent_months(months)
 
     # 병렬로 API 호출 (속도 개선)
