@@ -319,6 +319,8 @@ async def search_property(
     trade_type: str = "매매",
     min_price: int = 0,
     max_price: int = 999999,
+    size_type: str = "",
+    rent_type: str = "",
     max_results: int = 5,
     sort_by: str = "최신순",
 ) -> str:
@@ -330,6 +332,8 @@ async def search_property(
         trade_type: 거래 유형 - '매매', '전세', '월세' 중 하나 (기본값: 매매)
         min_price: 최소 가격 (만원 단위, 기본값: 0)
         max_price: 최대 가격 (만원 단위, 기본값: 999999)
+        size_type: 면적 필터 - '소형'(~59㎡), '국민평형'(59~84㎡), '중형'(84~115㎡), '대형'(115㎡~) 중 하나 (기본값: 전체)
+        rent_type: 전월세 세부 필터 - '순수전세'(월세 0원인 전세만), '반전세'(보증금+월세), '월세'(월세 위주) 중 하나. trade_type이 '전세'일 때만 적용. (기본값: 전체)
         max_results: 최대 결과 수 (기본값: 5)
         sort_by: 정렬 기준 - '최신순' 또는 '살기좋은순' (기본값: 최신순). 살기좋은순은 역세권(도보5분+3점), 학군(도보5분+2점), 어린이집(도보5분+1점), 신축5년이내(+3점) 등을 종합 평가합니다.
     """
@@ -372,6 +376,35 @@ async def search_property(
         if min_price <= price <= max_price:
             item["_price"] = price
             filtered.append(item)
+
+    # 면적 필터링
+    if size_type:
+        size_ranges = {
+            "소형": (0, 59),
+            "국민평형": (59, 84),
+            "중형": (84, 115),
+            "대형": (115, 9999),
+        }
+        if size_type in size_ranges:
+            min_area, max_area = size_ranges[size_type]
+            filtered = [i for i in filtered if min_area <= float(i.get("전용면적", "0")) <= max_area]
+
+    # 전월세 세부 필터
+    if rent_type and trade_type != "매매":
+        def _rent_filter(item: dict) -> bool:
+            monthly = item.get("월세금액", "0").strip()
+            try:
+                monthly_val = int(float(monthly.replace(",", "")))
+            except (ValueError, AttributeError):
+                monthly_val = 0
+            if rent_type == "순수전세":
+                return monthly_val == 0
+            elif rent_type == "반전세":
+                return 0 < monthly_val <= 100
+            elif rent_type == "월세":
+                return monthly_val > 0
+            return True
+        filtered = [i for i in filtered if _rent_filter(i)]
 
     filtered.sort(key=lambda x: (x.get("년", ""), x.get("월", ""), x.get("일", "")), reverse=True)
 
