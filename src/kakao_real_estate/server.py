@@ -12,7 +12,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP
 
 from kakao_real_estate.api_client import (
     fetch_rent,
@@ -310,39 +310,6 @@ def _calc_livability_score(item: dict) -> int:
             pass
 
     return score
-
-
-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
-async def check_my_location(ctx: Context) -> str:
-    """[부동산 매물 검색] 현재 접속 위치를 확인합니다. 위치 기반 검색 테스트용입니다."""
-    import httpx as _httpx
-    info = []
-    rc = ctx.request_context
-    request = getattr(rc, "request", None)
-    if request:
-        client = getattr(request, "client", None)
-        if client:
-            info.append(f"client IP: {client.host}")
-        xff = request.headers.get("x-forwarded-for", "없음")
-        info.append(f"X-Forwarded-For: {xff}")
-        xri = request.headers.get("x-real-ip", "없음")
-        info.append(f"X-Real-IP: {xri}")
-
-        # IP로 위치 추정
-        ip = xff.split(",")[0].strip() if xff != "없음" else (client.host if client else None)
-        if ip and ip not in ("127.0.0.1", "없음"):
-            try:
-                async with _httpx.AsyncClient(timeout=5) as c:
-                    resp = await c.get(f"http://ip-api.com/json/{ip}")
-                    loc = resp.json()
-                    info.append(f"\n위치 추정: {loc.get('city', '?')}, {loc.get('regionName', '?')}")
-                    info.append(f"좌표: 위도 {loc.get('lat')}, 경도 {loc.get('lon')}")
-                    info.append(f"ISP: {loc.get('isp', '?')}")
-            except:
-                info.append("위치 추정 실패")
-    else:
-        info.append("request 객체 없음")
-    return "\n".join(info)
 
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
